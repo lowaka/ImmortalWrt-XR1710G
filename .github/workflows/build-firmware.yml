@@ -16,6 +16,9 @@ on:
         description: 'Release Notes'
         required: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,7 +46,7 @@ jobs:
 
       - name: Configure
         run: |
-          cp .config .config.backup
+          cat .config | grep -E "^CONFIG_PACKAGE|^CONFIG_TARGET|^CONFIG_ALL" | head -30
           make defconfig
 
       - name: Download sources
