@@ -18,111 +18,78 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  CONFIG_FILE: config.seed
-  TZ: Asia/Shanghai
-  DEBIAN_FRONTEND: noninteractive
 
 jobs:
-  build-firmware:
-    name: Build Firmware
-    runs-on: ubuntu-22.04
-    timeout-minutes: 360
-    concurrency:
-      group: router-build-${{ github.ref }}
-      cancel-in-progress: true
-    permissions:
-      contents: write
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
-          submodules: recursive
-          fetch-depth: 1
+          fetch-depth: 10
+          submodules: true
 
-      - name: Record start time
+      - name: Get current date
+        id: date
         run: |
-          echo "TIME0=$(TZ=${TZ} date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=$(TZ=${TZ} date '+%Y%m%d')" >> "$GITHUB_ENV"
+          echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
-      - name: Prepare build environment
-        env: { DEBIAN_FRONTEND: noninteractive }
+      - name: Setup build environment
         run: |
-          sudo rm -rf /usr/share/{dotnet,man,doc,groff,info,lintian,linda,locale} \
-                      /usr/local/lib/android /opt/ghc /usr/lib/jvm /usr/share/swift \
-                      /usr/local/go /opt/hostedtoolcache/* /usr/share/az_*
-          sudo docker system prune -af --volumes || true
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install -y --no-install-recommends \
-              ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-              bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gcc-multilib g++-multilib gettext \
-              genisoimage git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
-              libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev \
-              libreadline-dev libssl-dev libtool llvm lrzsz libnsl-dev ninja-build p7zip p7zip-full patch pkgconf \
-              python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion \
-              swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
-          sudo timedatectl set-timezone "$TZ"
+          sudo apt update
+          sudo apt install -y build-essential clang gcc g++ binutils bzip2 gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools rsync unzip wget xsltproc zlib1g-dev file which perl sed make
 
       - name: Install feeds
         run: |
           ./scripts/feeds update -a
-          ./scripts/feeds install -a -f
+          ./scripts/feeds install -a
 
       - name: Configure
         run: |
-          echo "=== Copying $CONFIG_FILE to .config ==="
-          cp $CONFIG_FILE .config
-          echo "=== Config content (first 50 lines) ==="
-          head -50 .config
-          echo "=== Running make defconfig ==="
+          cp config.seed .config
           make defconfig
 
       - name: Download sources
-        run: |
-          make download -j8
-          find dl -size -1024c -exec rm -f {} \;
-          du -sh dl
+        run: make download -j$(nproc)
 
-      - name: Build firmware
-        id: compile
+      - name: Build Firmware
         run: |
-          make V=s -j2 || make V=s -j1
+          make -j2 world 2>&1 | tee build.log
 
-      - name: Organize output
-        id: organize
+      - name: Check build status
         run: |
-          cd bin/targets/*/*
-          rm -rf packages
-          echo "FIRMWARE_DIR=$PWD" >> $GITHUB_ENV
-          echo "TIME1=$(TZ=${TZ} date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
-          echo "=== Firmware files ==="
-          ls -lh
-
-      - name: Calculate build time
-        run: |
-          START_TIME=$(TZ=${TZ} date -d "${{ env.TIME0 }}" +%s)
-          END_TIME=$(TZ=${TZ} date -d "${{ env.TIME1 }}" +%s)
-          ELAPSED_SECONDS=$((END_TIME - START_TIME))
-          ELAPSED_FORMATTED=$(printf "%02dh %02dm %02ds" $((ELAPSED_SECONDS/3600)) $((ELAPSED_SECONDS%3600/60)) $((ELAPSED_SECONDS%60)))
-          echo "ELAPSED=$ELAPSED_FORMATTED" >> $GITHUB_ENV
+          if [ -f build.log ]; then
+            tail -100 build.log
+          fi
+          ls -lh bin/targets/airoha/an7581/ 2>/dev/null || echo "No files found"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v5
         with:
-          name: Router-Firmware-${{ github.run_number }}
-          path: ${{ env.FIRMWARE_DIR }}/*
+          name: router-firmware
+          path: |
+            bin/targets/airoha/an7581/*.itb
+            bin/targets/airoha/an7581/config.buildinfo
+            bin/targets/airoha/an7581/feeds.buildinfo
+            bin/targets/airoha/an7581/version.buildinfo
+            bin/targets/airoha/an7581/sha256sums
           retention-days: 30
+        if: always()
 
       - name: Create Release
         if: github.event.inputs.release_type != 'none'
-        uses: softprops/action-gh-release@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: ${{ format('{0} - Router Build', env.RELEASE_TAG) }}
-          body: ${{ github.event.inputs.release_notes || format('Build Date: {0}', env.RELEASE_TAG) }}
+          tag_name: ${{ steps.date.outputs.date }}
+          name: ${{ format('{0} - Router Build', steps.date.outputs.date) }}
+          body: ${{ github.event.inputs.release_notes }}
           draft: false
           prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
-          files: ${{ env.FIRMWARE_DIR }}/*
+          files: |
+            bin/targets/airoha/an7581/*.itb
+            bin/targets/airoha/an7581/config.buildinfo
+            bin/targets/airoha/an7581/feeds.buildinfo
+            bin/targets/airoha/an7581/version.buildinfo
+            bin/targets/airoha/an7581/sha256sums
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
