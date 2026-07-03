@@ -1,0 +1,72 @@
+name: Sync Upstream ImmortalWrt
+
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/immortalwrt/immortalwrt.git || true
+          git remote set-url upstream https://github.com/immortalwrt/immortalwrt.git
+
+      - name: Fetch upstream
+        run: |
+          git fetch upstream master
+
+      - name: Check for updates
+        id: check_updates
+        run: |
+          LOCAL=$(git rev-parse HEAD)
+          REMOTE=$(git rev-parse upstream/master)
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "No updates available"
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+          else
+            echo "Updates available: $LOCAL -> $REMOTE"
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rebase with upstream
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git config pull.rebase true
+          git config rebase.autoStash true
+          git pull --rebase upstream master || git rebase --abort || true
+          if [ -d .git/rebase-apply ]; then
+            echo "Rebase failed, attempting merge instead"
+            git merge --no-edit upstream/master --allow-unrelated-histories || {
+              echo "Merge also failed, attempting to resolve conflicts by keeping local changes"
+              git checkout --ours .
+              git add .
+              git commit -m "Merge upstream with conflicts resolved (keeping local changes)"
+            }
+          fi
+
+      - name: Push to origin
+        if: steps.check_updates.outputs.has_updates == 'true'
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G.git
+          git push origin master --force
+
+      - name: Show result
+        run: |
+          echo "=== Sync Result ==="
+          git log --oneline -5
+          echo "=== Remote Status ==="
+          git remote -v
