@@ -46,6 +46,8 @@ jobs:
 
       - name: Configure
         run: |
+          echo "=== Copying config.seed to .config ==="
+          cp config.seed .config
           echo "=== Before defconfig ==="
           cat .config | grep -E "^CONFIG_PACKAGE|^CONFIG_TARGET|^CONFIG_ALL" | head -40
           echo "=== Running make defconfig ==="
