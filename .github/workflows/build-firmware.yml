@@ -46,8 +46,12 @@ jobs:
 
       - name: Configure
         run: |
-          cat .config | grep -E "^CONFIG_PACKAGE|^CONFIG_TARGET|^CONFIG_ALL" | head -30
+          echo "=== Before defconfig ==="
+          cat .config | grep -E "^CONFIG_PACKAGE|^CONFIG_TARGET|^CONFIG_ALL" | head -40
+          echo "=== Running make defconfig ==="
           make defconfig
+          echo "=== After defconfig ==="
+          cat .config | grep -E "^CONFIG_PACKAGE|^CONFIG_TARGET|^CONFIG_ALL" | head -40
 
       - name: Download sources
         run: make download -j$(nproc)
@@ -61,6 +65,8 @@ jobs:
           if [ -f build.log ]; then
             tail -100 build.log
           fi
+          echo "=== Firmware files ==="
+          ls -lh bin/targets/airoha/an7581/ 2>/dev/null || echo "No files found"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
