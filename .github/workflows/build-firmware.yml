@@ -22,9 +22,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 10
           submodules: true
@@ -64,7 +66,7 @@ jobs:
           ls -lh bin/targets/airoha/an7581/ 2>/dev/null || echo "No files found"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: router-firmware
           path: |
@@ -78,7 +80,7 @@ jobs:
 
       - name: Create Release
         if: github.event.inputs.release_type != 'none'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.date.outputs.date }}
           name: ${{ format('{0} - Router Build', steps.date.outputs.date) }}
