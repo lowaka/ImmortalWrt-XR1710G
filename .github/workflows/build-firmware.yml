@@ -59,6 +59,16 @@ jobs:
       - name: Download sources
         run: make download -j$(nproc)
 
+      - name: Fetch latest OpenClash core
+        run: |
+          mkdir -p files/etc/openclash/core
+          curl -fsSL --retry 3 -o /tmp/clash-meta.tar.gz \
+            https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz
+          tar -xzf /tmp/clash-meta.tar.gz -C /tmp
+          install -m 0755 /tmp/clash files/etc/openclash/core/clash_meta
+          test -s files/etc/openclash/core/clash_meta
+          echo "OpenClash core bundled: $(ls -l files/etc/openclash/core/clash_meta)"
+
       - name: Build Firmware
         run: |
           make -j2 world 2>&1 | tee build.log
