@@ -145,8 +145,10 @@ jobs:
           path: |
             build.log
             bin/targets/airoha/an7581/*.itb
+            bin/targets/airoha/an7581/*.manifest
             bin/targets/airoha/an7581/config.buildinfo
             bin/targets/airoha/an7581/feeds.buildinfo
+            bin/targets/airoha/an7581/profiles.json
             bin/targets/airoha/an7581/version.buildinfo
             bin/targets/airoha/an7581/sha256sums
           retention-days: 30
@@ -184,8 +186,10 @@ jobs:
           prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
           files: |
             bin/targets/airoha/an7581/*.itb
+            bin/targets/airoha/an7581/*.manifest
             bin/targets/airoha/an7581/config.buildinfo
             bin/targets/airoha/an7581/feeds.buildinfo
+            bin/targets/airoha/an7581/profiles.json
             bin/targets/airoha/an7581/version.buildinfo
             bin/targets/airoha/an7581/sha256sums
         env:
