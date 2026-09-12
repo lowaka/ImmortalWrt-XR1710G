@@ -1,19 +1,36 @@
-name: Sync Upstream ImmortalWrt
+name: Sync Upstream (naoki66 + ImmortalWrt)
+
+# 每次合并只做“拉取 + 合并 + 推送”，定制内容全部放在 custom/ 目录，
+# 因此上游更新不会覆盖本仓库的插件清单、后台地址等定制。
 
 on:
   schedule:
     - cron: '0 19 */3 * *'
   workflow_dispatch:
+    inputs:
+      trigger_build:
+        description: '同步成功后是否自动触发固件构建'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 permissions:
   contents: write
+  actions: write
+
+concurrency:
+  group: xr1710g-sync
+  cancel-in-progress: false
 
 jobs:
   sync-upstream:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -22,45 +39,60 @@ jobs:
         run: |
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
+          # 冲突时保留本仓库版本（.gitattributes 中标记 merge=keep-ours 的文件使用该驱动）
+          git config merge.keep-ours.name "keep our version on conflict"
+          git config merge.keep-ours.driver true
 
-      - name: Add upstream remote
+      - name: Add upstream remotes
         run: |
+          git remote add parent https://github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G.git 2>/dev/null || true
+          git remote set-url parent https://github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G.git
           git remote add upstream https://github.com/immortalwrt/immortalwrt.git 2>/dev/null || true
           git remote set-url upstream https://github.com/immortalwrt/immortalwrt.git
 
-      - name: Fetch upstream
-        run: git fetch upstream master
-
-      - name: Check for updates
-        id: check
+      - name: Fetch upstreams
         run: |
-          LOCAL=$(git rev-parse HEAD)
-          REMOTE=$(git rev-parse upstream/master)
-          if git merge-base --is-ancestor upstream/master HEAD; then
-            echo "No updates available (upstream: ${REMOTE:0:7}, local: ${LOCAL:0:7})"
-            echo "has_updates=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Updates available: ${LOCAL:0:7} -> ${REMOTE:0:7}"
-            echo "has_updates=true" >> "$GITHUB_OUTPUT"
-          fi
+          git fetch --no-tags parent +refs/heads/master:refs/remotes/parent/master
+          git fetch --no-tags upstream +refs/heads/master:refs/remotes/upstream/master
 
-      - name: Merge upstream
-        if: steps.check.outputs.has_updates == 'true'
+      - name: Merge updates
+        id: merge
         run: |
-          git merge --no-edit upstream/master || {
-            echo "::error::Merge failed. Conflicts need manual resolution."
-            git diff --name-only --diff-filter=U
-            exit 1
-          }
+          changed=false
+          for ref in parent/master upstream/master; do
+            if git merge-base --is-ancestor "$ref" HEAD; then
+              echo "== $ref：没有新提交，跳过"
+              continue
+            fi
+            echo "== 合并 $ref"
+            if ! git merge --no-edit "$ref"; then
+              echo "::error::合并 $ref 出现冲突，需要人工处理。冲突文件："
+              git diff --name-only --diff-filter=U
+              git merge --abort || true
+              exit 1
+            fi
+            changed=true
+          done
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: Push to origin
-        if: steps.check.outputs.has_updates == 'true'
-        run: git push origin master
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin HEAD:master
+
+      - name: Trigger firmware build
+        if: ${{ steps.merge.outputs.changed == 'true' && (github.event_name == 'schedule' || github.event.inputs.trigger_build != 'false') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh workflow run build-firmware.yml --repo "${{ github.repository }}" --ref master; then
+            echo "已触发固件构建：Build XR1710G Firmware"
+          else
+            echo "::warning::自动触发构建失败，请手动运行 Build XR1710G Firmware"
+          fi
 
       - name: Show result
         if: always()
         run: |
           echo "=== Sync Result ==="
           git log --oneline -5 || true
-          echo "=== Remote Status ==="
-          git remote -v || true
+          git status --short || true

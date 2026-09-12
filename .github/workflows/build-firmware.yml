@@ -1,6 +1,11 @@
 name: Build XR1710G Firmware
+# 说明：本文件 = naoki66 上游 workflow + 本仓库定制 hook（custom/ 目录）。
+# 同步上游时若与本文件冲突，会保留本文件版本（见 .gitattributes）。
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       release_type:
@@ -18,6 +23,10 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: xr1710g-build
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -60,6 +69,14 @@ jobs:
 
       - name: Install feeds
         run: |
+          # 自定义 feed 放在最前面：脚本按 feeds.conf 顺序取优先级，
+          # 同名包（如 luci-app-openclash）会优先使用自定义源里的最新版。
+          if [ -f custom/feeds.conf.custom ]; then
+            cat custom/feeds.conf.custom > feeds.conf
+          else
+            : > feeds.conf
+          fi
+          cat feeds.conf.default >> feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           bash scripts/fix-stale-golang-host.sh
@@ -67,6 +84,10 @@ jobs:
       - name: Configure
         run: |
           cp config.seed .config
+          # 应用自定义插件开关（与 config.seed 解耦，避免同步上游时被覆盖）
+          if [ -f custom/config.fragment ]; then
+            cat custom/config.fragment >> .config
+          fi
           BUILD_DATE='${{ steps.version.outputs.date }}' \
           BUILD_ID='${{ steps.version.outputs.build_id }}' \
           REPO_COMMIT='${{ steps.version.outputs.repo_commit }}' \
@@ -76,6 +97,14 @@ jobs:
           bash scripts/set-build-version.sh .config
           make defconfig
           grep -E 'CONFIG_(IMAGEOPT|EXTRA_IMAGE_NAME|VERSIONOPT|VERSION_DIST|VERSION_NUMBER|VERSION_CODE)=' .config
+
+      - name: Prepare custom files overlay
+        run: |
+          mkdir -p files
+          cp -a custom/files/. files/
+
+      - name: Bundle latest OpenClash core
+        run: bash custom/scripts/fetch-openclash-core.sh
 
       - name: Download sources
         run: make download -j$(nproc)
@@ -116,7 +145,7 @@ jobs:
         if: always()
 
       - name: Build release body
-        if: github.event.inputs.release_type != 'none'
+        if: github.event_name == 'push' || github.event.inputs.release_type != 'none'
         id: release_body
         env:
           RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
@@ -137,7 +166,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: github.event.inputs.release_type != 'none'
+        if: github.event_name == 'push' || github.event.inputs.release_type != 'none'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ format('{0}-{1}', steps.version.outputs.date, steps.version.outputs.repo_commit) }}

@@ -1,0 +1,78 @@
+# ============================================================
+# XR1710G (ImmortalWrt) 自定义插件开关
+# 由 .github/workflows/build-firmware.yml 在 make defconfig 之前追加到 .config。
+# 单独放在 custom/ 目录，是为了同步 naoki66 / ImmortalWrt 上游时不会被覆盖。
+#
+# 修改插件：直接增删下面的配置行，然后运行一次 Build XR1710G Firmware。
+# ============================================================
+
+# ---------- 编译进固件的插件 ----------
+CONFIG_PACKAGE_luci-app-openclash=y
+CONFIG_PACKAGE_luci-app-dae=y
+CONFIG_PACKAGE_dae=y
+CONFIG_PACKAGE_luci-i18n-dae-zh-cn=y
+CONFIG_PACKAGE_luci-app-argon-config=y
+CONFIG_PACKAGE_luci-i18n-argon-config-zh-cn=y
+CONFIG_PACKAGE_luci-theme-argon=y
+CONFIG_PACKAGE_ddns-go=y
+CONFIG_PACKAGE_luci-app-ddns-go=y
+CONFIG_PACKAGE_luci-i18n-ddns-go-zh-cn=y
+CONFIG_PACKAGE_rtp2httpd=y
+CONFIG_PACKAGE_luci-app-rtp2httpd=y
+CONFIG_PACKAGE_luci-i18n-rtp2httpd-zh-cn=y
+
+# ---------- 不需要的插件（保持关闭） ----------
+# udpxy
+# CONFIG_PACKAGE_udpxy is not set
+# CONFIG_PACKAGE_luci-app-udpxy is not set
+# CONFIG_PACKAGE_luci-i18n-udpxy-zh-cn is not set
+# msd_lite
+# CONFIG_PACKAGE_msd_lite is not set
+# CONFIG_PACKAGE_luci-app-msd_lite is not set
+# CONFIG_PACKAGE_luci-i18n-msd_lite-zh-cn is not set
+# vlmcsd
+# CONFIG_PACKAGE_vlmcsd is not set
+# CONFIG_PACKAGE_luci-app-vlmcsd is not set
+# CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn is not set
+# wechatpush
+# CONFIG_PACKAGE_luci-app-wechatpush is not set
+# CONFIG_PACKAGE_luci-i18n-wechatpush-zh-cn is not set
+# CONFIG_PACKAGE_WECHATPUSH_Enable_Host_Information_Detection is not set
+# wifihistory
+# CONFIG_PACKAGE_luci-app-wifihistory is not set
+# CONFIG_PACKAGE_luci-i18n-wifihistory-zh-cn is not set
+# timewol
+# CONFIG_PACKAGE_luci-app-timewol is not set
+# CONFIG_PACKAGE_luci-i18n-timewol-zh-cn is not set
+# 传统 DDNS（已改用 ddns-go）
+# CONFIG_PACKAGE_luci-app-ddns is not set
+# CONFIG_PACKAGE_luci-i18n-ddns-zh-cn is not set
+# CONFIG_PACKAGE_ddns-scripts is not set
+# CONFIG_PACKAGE_ddns-scripts-services is not set
+# CONFIG_PACKAGE_ddns-scripts-cloudflare is not set
+# CONFIG_PACKAGE_ddns-scripts-aliyun is not set
+# CONFIG_PACKAGE_ddns-scripts-dnspod is not set
+# CONFIG_PACKAGE_ddns-scripts_dnspod is not set
+# smartdns
+# CONFIG_PACKAGE_smartdns is not set
+# CONFIG_PACKAGE_smartdns-ui is not set
+# CONFIG_PACKAGE_luci-app-smartdns is not set
+# CONFIG_PACKAGE_luci-i18n-smartdns-zh-cn is not set
+# UPNP
+# CONFIG_PACKAGE_luci-app-upnp is not set
+# CONFIG_PACKAGE_luci-i18n-upnp-zh-cn is not set
+# CONFIG_PACKAGE_miniupnpd is not set
+# CONFIG_PACKAGE_miniupnpd-nftables is not set
+# WiFi 定时开关
+# CONFIG_PACKAGE_wifischedule is not set
+# CONFIG_PACKAGE_luci-app-wifischedule is not set
+# CONFIG_PACKAGE_luci-i18n-wifischedule-zh-cn is not set
+# 网络唤醒
+# CONFIG_PACKAGE_luci-app-wol is not set
+# CONFIG_PACKAGE_luci-i18n-wol-zh-cn is not set
+# CONFIG_PACKAGE_etherwake is not set
+# CONFIG_PACKAGE_etherwake-nfqueue is not set
+# Watchcat
+# CONFIG_PACKAGE_watchcat is not set
+# CONFIG_PACKAGE_luci-app-watchcat is not set
+# CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn is not set
