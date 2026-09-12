@@ -95,6 +95,14 @@ jobs:
           VERSION_NUMBER='${{ steps.version.outputs.version_number }}' \
           VERSION_CODE='${{ steps.version.outputs.version_code }}' \
           bash scripts/set-build-version.sh .config
+          # 统一命名：ImmortalWrt for XR1710G <日期-仓库提交-上游提交>
+          # 去掉重复的 EXTRA_IMAGE_NAME 与 VERSION_CODE 片段，避免文件名里版本号叠三遍
+          {
+            echo 'CONFIG_VERSION_DIST="ImmortalWrt for XR1710G"'
+            echo 'CONFIG_VERSION_NUMBER="${{ steps.version.outputs.version_number }}"'
+            echo '# CONFIG_EXTRA_IMAGE_NAME is not set'
+            echo '# CONFIG_VERSION_CODE_FILENAMES is not set'
+          } >> .config
           make defconfig
           grep -E 'CONFIG_(IMAGEOPT|EXTRA_IMAGE_NAME|VERSIONOPT|VERSION_DIST|VERSION_NUMBER|VERSION_CODE)=' .config
 
@@ -170,7 +178,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ format('{0}-{1}', steps.version.outputs.date, steps.version.outputs.repo_commit) }}
-          name: ${{ format('{0} - XR1710G Build ({1})', steps.version.outputs.date, steps.version.outputs.repo_commit) }}
+          name: ${{ format('ImmortalWrt for XR1710G {0}', steps.version.outputs.build_id) }}
           body: ${{ steps.release_body.outputs.body }}
           draft: false
           prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
