@@ -95,10 +95,10 @@ jobs:
           VERSION_NUMBER='${{ steps.version.outputs.version_number }}' \
           VERSION_CODE='${{ steps.version.outputs.version_code }}' \
           bash scripts/set-build-version.sh .config
-          # 统一命名：ImmortalWrt for XR1710G <日期-仓库提交-上游提交>
+          # 统一文件名：immortalwrt-<日期>-<仓库提交>-<上游提交>-<目标>-<设备>-<镜像类型>.itb
           # 去掉重复的 EXTRA_IMAGE_NAME 与 VERSION_CODE 片段，避免文件名里版本号叠三遍
           {
-            echo 'CONFIG_VERSION_DIST="ImmortalWrt for XR1710G"'
+            echo 'CONFIG_VERSION_DIST="immortalwrt"'
             echo 'CONFIG_VERSION_NUMBER="${{ steps.version.outputs.version_number }}"'
             echo '# CONFIG_EXTRA_IMAGE_NAME is not set'
             echo '# CONFIG_VERSION_CODE_FILENAMES is not set'
